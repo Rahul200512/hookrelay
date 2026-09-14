@@ -109,7 +109,7 @@ Retries wait 10s, 1m, 5m, 30m, 2h, 6h, 12h — eight attempts over about twenty 
 
 **Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problems** with stable `type` URIs, listed in [docs/problems.md](docs/problems.md).
 
-63 tests, 90% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
+64 tests, 90% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
 
 ## What's next
 

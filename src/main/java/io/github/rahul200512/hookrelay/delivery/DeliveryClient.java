@@ -68,10 +68,25 @@ public class DeliveryClient {
                         return new Outcome(code, code >= 400 ? "HTTP " + code : null, retryAfter, elapsed(started));
                     }, false);
         } catch (RuntimeException e) {
-            String reason = e.getCause() != null ? e.getCause().getClass().getSimpleName() + ": " + e.getCause().getMessage()
-                    : e.getClass().getSimpleName() + ": " + e.getMessage();
-            return new Outcome(null, truncate(reason), Optional.empty(), elapsed(started));
+            return new Outcome(null, describe(e), Optional.empty(), elapsed(started));
         }
+    }
+
+    /**
+     * What goes in the attempt log, which is something a user reads to find out why their
+     * webhook never arrived. Walks to the deepest cause, because the wrapper is always
+     * ResourceAccessException and never says anything, and falls back to the class name:
+     * ConnectException often carries no message at all, and "ConnectException: null"
+     * tells nobody anything.
+     */
+    static String describe(Throwable e) {
+        Throwable root = e;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String message = root.getMessage();
+        String name = root.getClass().getSimpleName();
+        return truncate(message == null || message.isBlank() ? name : name + ": " + message);
     }
 
     static Optional<Duration> parseRetryAfter(String header) {

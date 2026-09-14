@@ -50,3 +50,5 @@ hookrelay:
 
 server:
   shutdown: graceful
+  # Render terminates TLS and forwards; trust X-Forwarded-* so remote IPs are real.
+  forward-headers-strategy: native

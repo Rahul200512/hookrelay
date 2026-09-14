@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: hookrelay
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/hookrelay}
+    username: ${DATABASE_USERNAME:hookrelay}
+    password: ${DATABASE_PASSWORD:hookrelay}
+    hikari:
+      # Neon's free tier is happiest with a small pool; the app is I/O-bound on
+      # receivers, not on the database.
+      maximum-pool-size: 5
+      minimum-idle: 1
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+hookrelay:
+  public-url: ${APP_PUBLIC_URL:http://localhost:8080}
+  delivery:
+    poll-interval: 1s
+    batch-size: 50
+    max-in-flight: 200
+    per-endpoint-in-flight: 4
+    lease: 60s
+    connect-timeout: 3s
+    read-timeout: 10s
+    pause-after-consecutive-failures: 50
+  security:
+    # Only ever true in dev/test: lets endpoints point at localhost.
+    allow-private-targets: false
+
+server:
+  shutdown: graceful

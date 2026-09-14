@@ -2,6 +2,7 @@ package io.github.rahul200512.hookrelay.security;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.net.URI;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,6 +22,9 @@ final class ProblemResponses {
         problem.setTitle(status.getReasonPhrase());
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        response.getWriter().write(mapper.writeValueAsString(problem));
+        // Write bytes, not characters: the servlet writer would encode as ISO-8859-1 and
+        // mangle any non-ASCII detail, and it would stamp a charset the MVC layer's own
+        // problem responses don't carry.
+        response.getOutputStream().write(mapper.writeValueAsString(problem).getBytes(StandardCharsets.UTF_8));
     }
 }

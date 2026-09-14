@@ -47,6 +47,7 @@ hookrelay:
   security:
     # Only ever true in dev/test: lets endpoints point at localhost.
     allow-private-targets: false
+    signups-per-hour-per-ip: 5
 
 server:
   shutdown: graceful

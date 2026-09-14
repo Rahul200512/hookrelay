@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 class WebhookSignerTest {
 
     // The vector published with the Standard Webhooks spec.
-    static final String SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
+    static final String SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"; // gitleaks:allow — published spec vector
     static final String ID = "msg_p5jXN8AQM9LWM0D4loKWxJek";
     static final long TS = 1614265330L;
     static final String BODY = "{\"test\": 2432232314}";

@@ -22,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "hookrelay.security.allow-private-targets=true",
+        "hookrelay.security.signups-per-hour-per-ip=1000",
         "hookrelay.public-url=http://localhost:0",
         "hookrelay.delivery.poll-interval=200ms",
         "hookrelay.delivery.backoff=200ms,200ms",
@@ -30,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
         "logging.level.io.github.rahul200512.hookrelay=DEBUG",
 })
 @Testcontainers(disabledWithoutDocker = true)
-@Import(FakeReceiver.class)
+@Import({FakeReceiver.class, FakeReceiver.ReachableFromOutside.class})
 public abstract class IntegrationTest {
 
     @ServiceConnection

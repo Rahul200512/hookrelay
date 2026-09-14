@@ -6,12 +6,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -20,6 +25,24 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 public class FakeReceiver {
+
+    /**
+     * A receiver is somebody else's server: it must answer our POST without one of our
+     * API keys. Without this the stub sits behind our own filter chain, answers 401, and
+     * every delivery dead-letters as a client error — which is exactly what happened the
+     * first time these tests ran.
+     */
+    @TestConfiguration
+    public static class ReachableFromOutside {
+        @Bean
+        @Order(1)
+        SecurityFilterChain fakeReceiverChain(HttpSecurity http) throws Exception {
+            return http.securityMatcher("/fake/**")
+                    .csrf(csrf -> csrf.disable())
+                    .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                    .build();
+        }
+    }
 
     public record Received(Map<String, String> headers, String body) {}
 

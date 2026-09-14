@@ -23,5 +23,7 @@ public record HookrelayProperties(
             @NotNull Duration readTimeout,
             @Min(1) int pauseAfterConsecutiveFailures) {}
 
-    public record Security(boolean allowPrivateTargets) {}
+    public record Security(
+            boolean allowPrivateTargets,
+            @Min(1) int signupsPerHourPerIp) {}
 }

@@ -15,7 +15,7 @@ class SsrfGuardTest {
     private static SsrfGuard guard(boolean allowPrivate) {
         var delivery = new HookrelayProperties.Delivery(Duration.ofSeconds(1), 1, 1, 1, Duration.ofSeconds(1),
                 Duration.ofSeconds(1), Duration.ofSeconds(1), 1);
-        return new SsrfGuard(new HookrelayProperties("http://localhost", delivery, new HookrelayProperties.Security(allowPrivate)));
+        return new SsrfGuard(new HookrelayProperties("http://localhost", delivery, new HookrelayProperties.Security(allowPrivate, 5)));
     }
 
     @ParameterizedTest

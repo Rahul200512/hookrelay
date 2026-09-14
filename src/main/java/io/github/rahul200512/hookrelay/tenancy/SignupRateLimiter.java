@@ -1,5 +1,6 @@
 package io.github.rahul200512.hookrelay.tenancy;
 
+import io.github.rahul200512.hookrelay.config.HookrelayProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -15,16 +16,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class SignupRateLimiter {
 
-    private static final int LIMIT = 5;
     private static final Duration WINDOW = Duration.ofHours(1);
 
     private record Window(Instant start, int count) {}
 
     private final Map<String, Window> windows = new ConcurrentHashMap<>();
     private final Clock clock;
+    private final int limit;
 
-    public SignupRateLimiter(Clock clock) {
+    public SignupRateLimiter(Clock clock, HookrelayProperties properties) {
         this.clock = clock;
+        this.limit = properties.security().signupsPerHourPerIp();
     }
 
     public boolean allow(String ip) {
@@ -34,6 +36,6 @@ public class SignupRateLimiter {
         }
         Window w = windows.compute(ip, (k, prev) ->
                 prev == null || prev.start().plus(WINDOW).isBefore(now) ? new Window(now, 1) : new Window(prev.start(), prev.count() + 1));
-        return w.count() <= LIMIT;
+        return w.count() <= limit;
     }
 }

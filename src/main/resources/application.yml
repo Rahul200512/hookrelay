@@ -34,7 +34,8 @@ management:
         enabled: true
 
 hookrelay:
-  public-url: ${APP_PUBLIC_URL:http://localhost:8080}
+  # Render injects RENDER_EXTERNAL_URL; anywhere else, set APP_PUBLIC_URL.
+  public-url: ${APP_PUBLIC_URL:${RENDER_EXTERNAL_URL:http://localhost:8080}}
   delivery:
     poll-interval: 1s
     batch-size: 50
@@ -50,6 +51,8 @@ hookrelay:
     signups-per-hour-per-ip: 5
 
 server:
+  # Render tells the container which port to bind through PORT.
+  port: ${PORT:8080}
   shutdown: graceful
   # Render terminates TLS and forwards; trust X-Forwarded-* so remote IPs are real.
   forward-headers-strategy: native

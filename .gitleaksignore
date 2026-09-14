@@ -1,0 +1,6 @@
+# The Standard Webhooks specification publishes a secret, message id, timestamp and
+# expected signature so implementations can prove they interoperate. WebhookSignerTest
+# asserts against exactly that vector. The current copy carries a gitleaks:allow
+# comment; this fingerprint covers the commit that introduced it, before the comment
+# existed, because the scan reads history.
+6d0dda810aea96d44f26894bd3fc06b1117441f6:src/test/java/io/github/rahul200512/hookrelay/domain/WebhookSignerTest.java:generic-api-key:10

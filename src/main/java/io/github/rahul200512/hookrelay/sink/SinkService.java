@@ -1,9 +1,10 @@
 package io.github.rahul200512.hookrelay.sink;
 
 import io.github.rahul200512.hookrelay.config.HookrelayProperties;
-import io.github.rahul200512.hookrelay.domain.Repositories;
 import io.github.rahul200512.hookrelay.domain.Sink;
+import io.github.rahul200512.hookrelay.domain.SinkRepository;
 import io.github.rahul200512.hookrelay.domain.SinkRequest;
+import io.github.rahul200512.hookrelay.domain.SinkRequestRepository;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.Base64;
@@ -25,13 +26,13 @@ public class SinkService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    private final Repositories.Sinks sinks;
-    private final Repositories.SinkRequests requests;
+    private final SinkRepository sinks;
+    private final SinkRequestRepository requests;
     private final ObjectMapper mapper;
     private final Clock clock;
     private final String publicUrl;
 
-    public SinkService(Repositories.Sinks sinks, Repositories.SinkRequests requests, ObjectMapper mapper,
+    public SinkService(SinkRepository sinks, SinkRequestRepository requests, ObjectMapper mapper,
                        Clock clock, HookrelayProperties properties) {
         this.sinks = sinks;
         this.requests = requests;

@@ -1,8 +1,9 @@
 package io.github.rahul200512.hookrelay.api;
 
 import io.github.rahul200512.hookrelay.domain.Delivery;
+import io.github.rahul200512.hookrelay.domain.DeliveryAttemptRepository;
+import io.github.rahul200512.hookrelay.domain.DeliveryRepository;
 import io.github.rahul200512.hookrelay.domain.DeliveryStatus;
-import io.github.rahul200512.hookrelay.domain.Repositories;
 import io.github.rahul200512.hookrelay.security.CurrentTenant;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;
@@ -27,10 +28,10 @@ public class DeliveryController {
 
     public record AttemptResponse(int attemptNo, Instant startedAt, int durationMs, Integer statusCode, String error) {}
 
-    private final Repositories.Deliveries deliveries;
-    private final Repositories.DeliveryAttempts attempts;
+    private final DeliveryRepository deliveries;
+    private final DeliveryAttemptRepository attempts;
 
-    public DeliveryController(Repositories.Deliveries deliveries, Repositories.DeliveryAttempts attempts) {
+    public DeliveryController(DeliveryRepository deliveries, DeliveryAttemptRepository attempts) {
         this.deliveries = deliveries;
         this.attempts = attempts;
     }

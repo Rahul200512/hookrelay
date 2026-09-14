@@ -4,8 +4,10 @@ import io.github.rahul200512.hookrelay.config.HookrelayProperties;
 import io.github.rahul200512.hookrelay.domain.BackoffPolicy;
 import io.github.rahul200512.hookrelay.domain.Delivery;
 import io.github.rahul200512.hookrelay.domain.DeliveryAttempt;
+import io.github.rahul200512.hookrelay.domain.DeliveryAttemptRepository;
+import io.github.rahul200512.hookrelay.domain.DeliveryRepository;
 import io.github.rahul200512.hookrelay.domain.Endpoint;
-import io.github.rahul200512.hookrelay.domain.Repositories;
+import io.github.rahul200512.hookrelay.domain.EndpointRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
@@ -33,16 +35,16 @@ public class DeliveryOutcomes {
     private static final Logger log = LoggerFactory.getLogger(DeliveryOutcomes.class);
     private static final Duration MAX_RETRY_AFTER = Duration.ofHours(1);
 
-    private final Repositories.Deliveries deliveries;
-    private final Repositories.DeliveryAttempts attempts;
-    private final Repositories.Endpoints endpoints;
+    private final DeliveryRepository deliveries;
+    private final DeliveryAttemptRepository attempts;
+    private final EndpointRepository endpoints;
     private final BackoffPolicy backoff;
     private final int pauseAfter;
     private final Clock clock;
     private final MeterRegistry metrics;
 
-    public DeliveryOutcomes(Repositories.Deliveries deliveries, Repositories.DeliveryAttempts attempts,
-                            Repositories.Endpoints endpoints, BackoffPolicy backoff,
+    public DeliveryOutcomes(DeliveryRepository deliveries, DeliveryAttemptRepository attempts,
+                            EndpointRepository endpoints, BackoffPolicy backoff,
                             HookrelayProperties properties, Clock clock, MeterRegistry metrics) {
         this.deliveries = deliveries;
         this.attempts = attempts;

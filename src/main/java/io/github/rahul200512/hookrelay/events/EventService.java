@@ -1,9 +1,11 @@
 package io.github.rahul200512.hookrelay.events;
 
 import io.github.rahul200512.hookrelay.domain.Delivery;
+import io.github.rahul200512.hookrelay.domain.DeliveryRepository;
 import io.github.rahul200512.hookrelay.domain.Endpoint;
+import io.github.rahul200512.hookrelay.domain.EndpointRepository;
 import io.github.rahul200512.hookrelay.domain.Event;
-import io.github.rahul200512.hookrelay.domain.Repositories;
+import io.github.rahul200512.hookrelay.domain.EventRepository;
 import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
@@ -16,14 +18,14 @@ public class EventService {
 
     public record Result(Event event, List<Delivery> deliveries, boolean replayed) {}
 
-    private final Repositories.Events events;
-    private final Repositories.Endpoints endpoints;
-    private final Repositories.Deliveries deliveries;
+    private final EventRepository events;
+    private final EndpointRepository endpoints;
+    private final DeliveryRepository deliveries;
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    public EventService(Repositories.Events events, Repositories.Endpoints endpoints,
-                        Repositories.Deliveries deliveries, TransactionTemplate tx, Clock clock) {
+    public EventService(EventRepository events, EndpointRepository endpoints,
+                        DeliveryRepository deliveries, TransactionTemplate tx, Clock clock) {
         this.events = events;
         this.endpoints = endpoints;
         this.deliveries = deliveries;

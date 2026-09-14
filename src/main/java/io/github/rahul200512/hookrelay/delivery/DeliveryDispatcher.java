@@ -2,8 +2,9 @@ package io.github.rahul200512.hookrelay.delivery;
 
 import io.github.rahul200512.hookrelay.config.HookrelayProperties;
 import io.github.rahul200512.hookrelay.domain.Endpoint;
+import io.github.rahul200512.hookrelay.domain.EndpointRepository;
 import io.github.rahul200512.hookrelay.domain.Event;
-import io.github.rahul200512.hookrelay.domain.Repositories;
+import io.github.rahul200512.hookrelay.domain.EventRepository;
 import jakarta.annotation.PreDestroy;
 import java.time.Clock;
 import java.time.Instant;
@@ -33,8 +34,8 @@ public class DeliveryDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(DeliveryDispatcher.class);
 
-    private final Repositories.Events events;
-    private final Repositories.Endpoints endpoints;
+    private final EventRepository events;
+    private final EndpointRepository endpoints;
     private final DeliveryClient client;
     private final DeliveryOutcomes outcomes;
     private final ObjectMapper mapper;
@@ -44,7 +45,7 @@ public class DeliveryDispatcher {
     private final int perEndpointLimit;
     private final Map<UUID, Semaphore> perEndpoint = new ConcurrentHashMap<>();
 
-    public DeliveryDispatcher(Repositories.Events events, Repositories.Endpoints endpoints, DeliveryClient client,
+    public DeliveryDispatcher(EventRepository events, EndpointRepository endpoints, DeliveryClient client,
                               DeliveryOutcomes outcomes, ObjectMapper mapper, Clock clock, HookrelayProperties properties) {
         this.events = events;
         this.endpoints = endpoints;

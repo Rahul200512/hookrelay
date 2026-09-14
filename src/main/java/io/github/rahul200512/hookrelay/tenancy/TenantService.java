@@ -1,8 +1,9 @@
 package io.github.rahul200512.hookrelay.tenancy;
 
 import io.github.rahul200512.hookrelay.domain.ApiKey;
-import io.github.rahul200512.hookrelay.domain.Repositories;
+import io.github.rahul200512.hookrelay.domain.ApiKeyRepository;
 import io.github.rahul200512.hookrelay.domain.Tenant;
+import io.github.rahul200512.hookrelay.domain.TenantRepository;
 import io.github.rahul200512.hookrelay.security.ApiKeys;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -13,10 +14,10 @@ public class TenantService {
 
     public record Created(UUID tenantId, String name, String apiKey) {}
 
-    private final Repositories.Tenants tenants;
-    private final Repositories.ApiKeys apiKeys;
+    private final TenantRepository tenants;
+    private final ApiKeyRepository apiKeys;
 
-    public TenantService(Repositories.Tenants tenants, Repositories.ApiKeys apiKeys) {
+    public TenantService(TenantRepository tenants, ApiKeyRepository apiKeys) {
         this.tenants = tenants;
         this.apiKeys = apiKeys;
     }

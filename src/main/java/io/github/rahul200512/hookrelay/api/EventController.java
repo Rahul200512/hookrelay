@@ -1,9 +1,10 @@
 package io.github.rahul200512.hookrelay.api;
 
 import io.github.rahul200512.hookrelay.domain.Delivery;
+import io.github.rahul200512.hookrelay.domain.DeliveryRepository;
 import io.github.rahul200512.hookrelay.domain.DeliveryStatus;
 import io.github.rahul200512.hookrelay.domain.Event;
-import io.github.rahul200512.hookrelay.domain.Repositories;
+import io.github.rahul200512.hookrelay.domain.EventRepository;
 import io.github.rahul200512.hookrelay.events.EventService;
 import io.github.rahul200512.hookrelay.security.CurrentTenant;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,11 +43,11 @@ public class EventController {
                                 List<DeliverySummary> deliveries) {}
 
     private final EventService events;
-    private final Repositories.Events eventRepository;
-    private final Repositories.Deliveries deliveries;
+    private final EventRepository eventRepository;
+    private final DeliveryRepository deliveries;
     private final ObjectMapper mapper;
 
-    public EventController(EventService events, Repositories.Events eventRepository, Repositories.Deliveries deliveries, ObjectMapper mapper) {
+    public EventController(EventService events, EventRepository eventRepository, DeliveryRepository deliveries, ObjectMapper mapper) {
         this.events = events;
         this.eventRepository = eventRepository;
         this.deliveries = deliveries;

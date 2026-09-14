@@ -1,7 +1,7 @@
 package io.github.rahul200512.hookrelay.api;
 
 import io.github.rahul200512.hookrelay.domain.Endpoint;
-import io.github.rahul200512.hookrelay.domain.Repositories;
+import io.github.rahul200512.hookrelay.domain.EndpointRepository;
 import io.github.rahul200512.hookrelay.domain.WebhookSigner;
 import io.github.rahul200512.hookrelay.security.CurrentTenant;
 import io.github.rahul200512.hookrelay.security.SsrfGuard;
@@ -52,10 +52,10 @@ public class EndpointController {
 
     public record EndpointCreated(EndpointResponse endpoint, String secret, String note) {}
 
-    private final Repositories.Endpoints endpoints;
+    private final EndpointRepository endpoints;
     private final SsrfGuard ssrfGuard;
 
-    public EndpointController(Repositories.Endpoints endpoints, SsrfGuard ssrfGuard) {
+    public EndpointController(EndpointRepository endpoints, SsrfGuard ssrfGuard) {
         this.endpoints = endpoints;
         this.ssrfGuard = ssrfGuard;
     }

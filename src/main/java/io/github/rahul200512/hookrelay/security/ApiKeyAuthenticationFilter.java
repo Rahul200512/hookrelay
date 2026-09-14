@@ -1,6 +1,6 @@
 package io.github.rahul200512.hookrelay.security;
 
-import io.github.rahul200512.hookrelay.domain.Repositories;
+import io.github.rahul200512.hookrelay.domain.ApiKeyRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,10 +27,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER = "Bearer ";
 
-    private final Repositories.ApiKeys apiKeys;
+    private final ApiKeyRepository apiKeys;
     private final ObjectMapper mapper;
 
-    public ApiKeyAuthenticationFilter(Repositories.ApiKeys apiKeys, ObjectMapper mapper) {
+    public ApiKeyAuthenticationFilter(ApiKeyRepository apiKeys, ObjectMapper mapper) {
         this.apiKeys = apiKeys;
         this.mapper = mapper;
     }

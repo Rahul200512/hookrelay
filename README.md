@@ -129,7 +129,12 @@ docker run -d --name hookrelay-pg -p 5432:5432 \
 
 Flyway creates the schema on startup. To point endpoints at `localhost` while experimenting, set `hookrelay.security.allow-private-targets=true` — it is false everywhere else for the reason described above.
 
-`./mvnw verify` runs everything, including the Testcontainers tests. Without Docker they skip rather than fail, and the build stays green on the unit tests alone.
+`./mvnw verify` runs everything, including the Testcontainers tests. Without Docker they skip rather than fail, and the build stays green on the unit tests alone — so check the skip count if you expected them to run. On Colima or another non-default Docker socket, point Testcontainers at it:
+
+```bash
+export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
+export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
+```
 
 ## Layout
 

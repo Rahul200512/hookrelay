@@ -1,0 +1,35 @@
+name: Native image
+
+# Ahead-of-time compilation needs several gigabytes and several minutes, so it does not
+# belong on every push. This proves the image still builds and reports what it costs.
+on:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: graalvm-community
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile ahead of time
+        run: ./mvnw -B --no-transfer-progress -Pnative -DskipTests native:compile
+
+      - name: Size and startup
+        run: |
+          ls -lh target/hookrelay
+          # No database here, so it will fail to start; what is being timed is how long the
+          # runtime takes to get as far as trying, which is the part AOT changes.
+          start=$(date +%s%N)
+          ./target/hookrelay --spring.profiles.active=nostart > start.log 2>&1 || true
+          end=$(date +%s%N)
+          echo "reached startup in $(( (end - start) / 1000000 )) ms"
+          grep -E "Started|Starting" start.log | head -3 || true

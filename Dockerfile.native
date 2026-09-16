@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1
+# Native image. Starts in milliseconds and holds a fraction of the memory, which is what
+# a 512 MB container with a tenth of a CPU is short of. The cost is the build: ahead-of-time
+# compilation needs several gigabytes of RAM and minutes of CPU, which is why this runs in
+# CI rather than on every push to a laptop.
+FROM ghcr.io/graalvm/native-image-community:21 AS build
+WORKDIR /build
+COPY mvnw pom.xml ./
+COPY .mvn .mvn
+RUN ./mvnw -B -q --no-transfer-progress dependency:go-offline
+COPY src src
+RUN ./mvnw -B --no-transfer-progress -Pnative -DskipTests native:compile
+
+# distroless, not alpine: the binary is dynamically linked against glibc, and a static
+# build against musl is a different set of problems for no benefit here.
+FROM gcr.io/distroless/base-debian12
+WORKDIR /app
+COPY --from=build /build/target/hookrelay ./hookrelay
+EXPOSE 8080
+ENTRYPOINT ["/app/hookrelay"]

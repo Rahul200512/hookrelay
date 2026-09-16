@@ -20,10 +20,21 @@ public record HookrelayProperties(
             @Min(1) int perEndpointInFlight,
             @NotNull Duration lease,
             boolean pollerEnabled,
+            /** How delivery work is run. Switchable so the choice can be measured, not assumed. */
+            @NotNull Threads threads,
             @NotNull Duration pauseCooldown,
             @NotNull Duration connectTimeout,
             @NotNull Duration readTimeout,
             @Min(1) int pauseAfterConsecutiveFailures) {}
+
+    /**
+     * {@code VIRTUAL} gives every in-flight delivery its own thread; {@code PLATFORM}
+     * runs them on a fixed pool of {@code platformPoolSize}, which is what this service
+     * would have had to do before Java 21.
+     */
+    public record Threads(@NotNull Model model, @Min(1) int platformPoolSize) {
+        public enum Model { VIRTUAL, PLATFORM }
+    }
 
     public record Security(
             boolean allowPrivateTargets,

@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -22,7 +24,6 @@ import tools.jackson.databind.ObjectMapper;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "hookrelay.security.allow-private-targets=true",
-        "hookrelay.security.encryption-key=aG9va3JlbGF5LXRlc3Qta2V5LTMyLWJ5dGVzLWxvbmc=",
         "hookrelay.security.signups-per-hour-per-ip=1000",
         "hookrelay.public-url=http://localhost:0",
         "hookrelay.delivery.poll-interval=200ms",
@@ -37,6 +38,11 @@ public abstract class IntegrationTest {
 
     @ServiceConnection
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+
+    @DynamicPropertySource
+    static void encryptionKey(DynamicPropertyRegistry registry) {
+        TestKeys.register(registry);
+    }
 
     @LocalServerPort
     protected int port;

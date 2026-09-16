@@ -45,6 +45,12 @@ hookrelay:
     # The API and the worker are the same process today. This switch is what would
     # separate them: run API nodes with it false, worker nodes with it true.
     poller-enabled: true
+    threads:
+      # VIRTUAL or PLATFORM. Delivery is almost entirely waiting on someone else's
+      # server, which is the workload virtual threads exist for — see the benchmark
+      # in the README rather than taking that on faith.
+      model: VIRTUAL
+      platform-pool-size: 16
     # A paused endpoint is let back into rotation after this long. The probe is the
     # next real event: if the receiver is still down it simply pauses again.
     pause-cooldown: 15m

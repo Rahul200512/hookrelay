@@ -20,6 +20,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
@@ -35,7 +37,6 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "hookrelay.delivery.poller-enabled=false",
         "hookrelay.delivery.lease=60s",
         "hookrelay.security.allow-private-targets=true",
-        "hookrelay.security.encryption-key=aG9va3JlbGF5LXRlc3Qta2V5LTMyLWJ5dGVzLWxvbmc=",
         "logging.level.io.github.rahul200512.hookrelay=INFO",
 })
 @Testcontainers(disabledWithoutDocker = true)
@@ -47,6 +48,11 @@ class QueueGuaranteesIT {
 
     @ServiceConnection
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+
+    @DynamicPropertySource
+    static void encryptionKey(DynamicPropertyRegistry registry) {
+        TestKeys.register(registry);
+    }
 
     @Autowired
     DeliveryQueue queue;

@@ -13,7 +13,9 @@ class SecretCryptoTest {
 
     @Test
     void roundTrips() {
-        String secret = "whsec_9dRuBKdyxiHkNbIQsPsMHAvmvUfnaVyvMxTzpQFKiLo=";
+        // Generated, not pasted: a real-looking secret literal in source is what the
+        // secret scanner exists to catch, and it would be right to catch it.
+        String secret = "whsec_" + Base64.getEncoder().encodeToString("thirty-two-bytes-of-fake-secret!".getBytes());
         String stored = crypto.encrypt(secret);
         assertThat(stored).startsWith("v1:").doesNotContain(secret);
         assertThat(crypto.decrypt(stored)).isEqualTo(secret);

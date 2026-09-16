@@ -1,6 +1,15 @@
-# The Standard Webhooks specification publishes a secret, message id, timestamp and
-# expected signature so implementations can prove they interoperate. WebhookSignerTest
-# asserts against exactly that vector. The current copy carries a gitleaks:allow
-# comment; this fingerprint covers the commit that introduced it, before the comment
-# existed, because the scan reads history.
-6d0dda810aea96d44f26894bd3fc06b1117441f6:src/test/java/io/github/rahul200512/hookrelay/domain/WebhookSignerTest.java:generic-api-key:10
+# Findings reviewed and accepted, by fingerprint. Nothing here is a credential.
+#
+# Commit 4c416aa introduced the test-context encryption key as a base64 literal. It is
+# the base64 of the ASCII string "hookrelay-test-key-32-bytes-long" and unlocks nothing,
+# but it has the entropy of a real key, so the scanner was right to stop on it. The
+# literals are gone from the working tree — TestKeys derives the value at runtime, and
+# SecretCryptoTest generates its fixture — and these three entries only cover the commit
+# that still contains them.
+#
+# Scoped to exact fingerprints on purpose. A path or rule exclusion would also hide the
+# next real secret committed to a test file, which is the case this scanner exists for:
+# the repository this project replaces had live credentials in its history.
+4c416aab4afbd90c18b331df6d81317dec31250b:src/test/java/io/github/rahul200512/hookrelay/it/IntegrationTest.java:generic-api-key:25
+4c416aab4afbd90c18b331df6d81317dec31250b:src/test/java/io/github/rahul200512/hookrelay/crypto/SecretCryptoTest.java:generic-api-key:16
+4c416aab4afbd90c18b331df6d81317dec31250b:src/test/java/io/github/rahul200512/hookrelay/it/QueueGuaranteesIT.java:generic-api-key:38

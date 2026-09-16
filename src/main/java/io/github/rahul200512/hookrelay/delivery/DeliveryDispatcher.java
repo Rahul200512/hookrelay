@@ -22,12 +22,16 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Runs each claimed delivery on its own virtual thread, bounded two ways: a global
- * in-flight cap so the process can't exhaust sockets, and a per-endpoint cap so one slow
- * receiver can't occupy the global budget while everyone else waits.
+ * Runs each claimed delivery on its own thread, bounded two ways: a global in-flight cap
+ * so the process can't exhaust sockets, and a per-endpoint cap so one slow receiver can't
+ * occupy the global budget while everyone else waits.
  *
  * <p>Three phases, and no database connection is held across the middle one: read what
  * the call needs, make the call, persist the result.
+ *
+ * <p>The thread model is configuration rather than a hard-coded choice, so "virtual
+ * threads are the right call for this workload" is something the benchmark can show
+ * instead of something the README asserts.
  */
 @Component
 public class DeliveryDispatcher {
@@ -40,7 +44,7 @@ public class DeliveryDispatcher {
     private final DeliveryOutcomes outcomes;
     private final ObjectMapper mapper;
     private final Clock clock;
-    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService executor;
     private final Semaphore inFlight;
     private final int perEndpointLimit;
     private final Map<UUID, Semaphore> perEndpoint = new ConcurrentHashMap<>();
@@ -55,6 +59,14 @@ public class DeliveryDispatcher {
         this.clock = clock;
         this.inFlight = new Semaphore(properties.delivery().maxInFlight());
         this.perEndpointLimit = properties.delivery().perEndpointInFlight();
+        var threads = properties.delivery().threads();
+        this.executor = switch (threads.model()) {
+            case VIRTUAL -> Executors.newVirtualThreadPerTaskExecutor();
+            case PLATFORM -> Executors.newFixedThreadPool(threads.platformPoolSize());
+        };
+        log.info("delivery executor: {}{}", threads.model(),
+                threads.model() == HookrelayProperties.Threads.Model.PLATFORM
+                        ? " (" + threads.platformPoolSize() + " threads)" : "");
     }
 
     /** How many more deliveries can be started right now; the poller claims no more than this. */

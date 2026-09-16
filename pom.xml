@@ -131,6 +131,9 @@
             <include>**/*Test.java</include>
             <include>**/*IT.java</include>
           </includes>
+          <!-- The benchmark takes a minute and measures the machine as much as the code.
+               Run it deliberately: ./mvnw test -Dtest=ThroughputBenchmarkIT -Dgroups=benchmark -->
+          <excludedGroups>benchmark</excludedGroups>
         </configuration>
       </plugin>
       <plugin>

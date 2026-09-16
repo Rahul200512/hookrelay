@@ -13,9 +13,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 class SsrfGuardTest {
 
     private static SsrfGuard guard(boolean allowPrivate) {
-        var delivery = new HookrelayProperties.Delivery(Duration.ofSeconds(1), 1, 1, 1, Duration.ofSeconds(1),
-                true, Duration.ofMinutes(15), Duration.ofSeconds(1), Duration.ofSeconds(1), 1);
-        return new SsrfGuard(new HookrelayProperties("http://localhost", delivery, new HookrelayProperties.Security(allowPrivate, 5, 120, "", Duration.ofHours(24), Duration.ofDays(7))));
+        // Only the one flag matters here; the rest are filler that keeps the record happy.
+        var second = Duration.ofSeconds(1);
+        var threads = new HookrelayProperties.Threads(HookrelayProperties.Threads.Model.VIRTUAL, 16);
+        var delivery = new HookrelayProperties.Delivery(second, 1, 1, 1, second, true, threads, second, second, second, 1);
+        var security = new HookrelayProperties.Security(allowPrivate, 5, 120, "", Duration.ofHours(24), Duration.ofDays(7));
+        return new SsrfGuard(new HookrelayProperties("http://localhost", delivery, security));
     }
 
     @ParameterizedTest

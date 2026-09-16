@@ -2,6 +2,8 @@
 
 Send a webhook and know what happened to it. Signed with [Standard Webhooks](https://www.standardwebhooks.com), retried on a backoff, dead-lettered when a receiver never comes back, and every attempt readable over the API.
 
+**Live:** https://hookrelay-u7ml.onrender.com · **API docs:** https://hookrelay-u7ml.onrender.com/swagger-ui.html
+
 [![CI](https://github.com/Rahul200512/hookrelay/actions/workflows/ci.yml/badge.svg)](https://github.com/Rahul200512/hookrelay/actions/workflows/ci.yml)
 
 ## Why
@@ -20,10 +22,12 @@ Every one of those is a design decision with a defensible answer, and none of th
 
 ## Try it
 
-Three calls. No account, no setup: the service hosts a test receiver, so you can watch a delivery arrive without standing one up.
+Three calls against the live service. No account, no setup: it hosts a test receiver, so you can watch a signed delivery arrive without standing one up.
+
+It is on a free instance that sleeps after 15 idle minutes, so the first call may take a minute to answer while it wakes.
 
 ```bash
-HOST=http://localhost:8080
+HOST=https://hookrelay-u7ml.onrender.com
 
 KEY=$(curl -s -X POST $HOST/v1/tenants -H 'content-type: application/json' \
   -d '{"name":"demo"}' | jq -r .apiKey)

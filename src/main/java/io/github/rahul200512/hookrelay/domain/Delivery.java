@@ -36,6 +36,14 @@ public class Delivery {
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
 
+    /**
+     * The attempt count when this delivery was last replayed. The retry budget is
+     * counted from here, so a replay starts over without ever reusing an attempt
+     * number: the attempt log is append-only and keeps every round.
+     */
+    @Column(name = "attempts_at_replay", nullable = false)
+    private int attemptsAtReplay;
+
     @Column(name = "next_attempt_at", nullable = false)
     private Instant nextAttemptAt;
 
@@ -90,10 +98,23 @@ public class Delivery {
         leaseExpiresAt = null;
     }
 
-    public void requeue(Instant now) {
+    /** Puts a finished delivery back on the queue with a fresh budget. */
+    public void replay(Instant now) {
         status = DeliveryStatus.PENDING;
         nextAttemptAt = now;
         leaseExpiresAt = null;
+        attemptsAtReplay = attemptCount;
+        lastStatusCode = null;
+        lastError = null;
+    }
+
+    /** Which attempt of the current round this is: 1 on a fresh delivery. */
+    public int attemptInRound(int attemptNo) {
+        return attemptNo - attemptsAtReplay;
+    }
+
+    public boolean isReplayable() {
+        return status == DeliveryStatus.DEAD || status == DeliveryStatus.SUCCEEDED;
     }
 
     public UUID getId() { return id; }
@@ -102,6 +123,7 @@ public class Delivery {
     public UUID getTenantId() { return tenantId; }
     public DeliveryStatus getStatus() { return status; }
     public int getAttemptCount() { return attemptCount; }
+    public int getAttemptsAtReplay() { return attemptsAtReplay; }
     public Instant getNextAttemptAt() { return nextAttemptAt; }
     public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
     public Integer getLastStatusCode() { return lastStatusCode; }

@@ -51,6 +51,12 @@ public final class ApiErrors {
         }
     }
 
+    public static class NotReplayable extends Problem {
+        public NotReplayable(String detail) {
+            super(HttpStatus.UNPROCESSABLE_CONTENT, "not-replayable", detail);
+        }
+    }
+
     public static class BadRequest extends Problem {
         public BadRequest(String detail) {
             super(HttpStatus.BAD_REQUEST, "bad-request", detail);

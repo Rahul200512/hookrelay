@@ -19,6 +19,8 @@ public record HookrelayProperties(
             @Min(1) int maxInFlight,
             @Min(1) int perEndpointInFlight,
             @NotNull Duration lease,
+            boolean pollerEnabled,
+            @NotNull Duration pauseCooldown,
             @NotNull Duration connectTimeout,
             @NotNull Duration readTimeout,
             @Min(1) int pauseAfterConsecutiveFailures) {}

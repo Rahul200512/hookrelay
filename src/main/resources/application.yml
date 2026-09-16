@@ -42,6 +42,12 @@ hookrelay:
     max-in-flight: 200
     per-endpoint-in-flight: 4
     lease: 60s
+    # The API and the worker are the same process today. This switch is what would
+    # separate them: run API nodes with it false, worker nodes with it true.
+    poller-enabled: true
+    # A paused endpoint is let back into rotation after this long. The probe is the
+    # next real event: if the receiver is still down it simply pauses again.
+    pause-cooldown: 15m
     connect-timeout: 3s
     read-timeout: 10s
     pause-after-consecutive-failures: 50

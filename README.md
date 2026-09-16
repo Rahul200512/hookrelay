@@ -109,11 +109,41 @@ Retries wait 10s, 1m, 5m, 30m, 2h, 6h, 12h — eight attempts over about twenty 
 
 **Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problems** with stable `type` URIs, listed in [docs/problems.md](docs/problems.md).
 
-64 tests, 90% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
+72 tests, 91% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
+
+## Guarantees, measured (v1)
+
+The v0 section claims `SKIP LOCKED` stops two workers taking the same row, and that a lease returns a crashed worker's row to the queue. Those are the two things the whole service rests on, so they are tests that print numbers rather than sentences I wrote.
+
+```bash
+./mvnw test -Dtest=QueueGuaranteesIT
+```
+
+| Claim | How it's tested | Result |
+|---|---|---|
+| Two workers never take the same row | 10 000 due deliveries, 8 threads claiming in batches of 100 until the table is drained | **10 000 claims, 10 000 distinct, 0 duplicates**, 358 ms |
+| A crashed worker loses nothing | Claim a row, record no outcome, expire the lease, claim again | Same row returns, **0 lost**, attempt count 1 → 2 |
+| A held lease hides the row | Claim, then claim again immediately | Second claim returns nothing |
+
+The crashed attempt is still counted, which matters more than it sounds: a row that kills whatever picks it up would otherwise be retried forever. Counting at claim time means a crash loop ends in dead-lettering like any other failure.
+
+The background poller is switched off in that test (`hookrelay.delivery.poller-enabled=false`). With it running there would be a third worker competing for the same rows, and "claimed exactly once" would be a statement about a race nobody could see. That switch is not test scaffolding: it is what would let API nodes and worker nodes be scaled separately.
+
+**Replay gives a dead delivery a fresh budget without losing its history.** Attempt numbers are unique per delivery, so replay cannot reset the counter — the old attempt rows are still there and would collide. Instead the delivery records where the current round began, and the retry budget is measured from that mark. Replay a delivery that failed three times and succeeds on the next try, and the log reads 500, 500, 500, 200 as attempts one through four.
+
+```bash
+curl -X POST $HOST/v1/deliveries/$ID/replay -H "authorization: Bearer $KEY"
+```
+
+Refused with a 422 if the delivery is still pending or running, or if its endpoint is switched off — replaying into a disabled endpoint would just burn the new budget.
+
+**A paused endpoint gets back in on its own.** After a cooldown (15 minutes by default) the pause is lifted and normal traffic resumes. There is no synthetic ping: sending a made-up request to someone's production URL to see if they answer is rude, and it proves less than it looks, since a receiver can answer a probe and still reject real events. The probe is the next real event. If the receiver is still broken the endpoint simply pauses again, so a dead URL costs one failed delivery per cooldown instead of a permanent retry storm.
+
+Pauses the service inflicted on itself are lifted this way. An endpoint the user disabled, or one that answered 410 Gone, stays off until the user turns it back on.
 
 ## What's next
 
-Crash recovery and two-worker contention measured rather than asserted, secret rotation with an overlap window, and a native image to see whether a free-tier cold start can be made not to matter. Tracked in [ROADMAP.md](ROADMAP.md).
+Secret rotation with an overlap window so a secret can change without dropping deliveries, and a native image to see whether a free-tier cold start can be made not to matter. Tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Run locally
 

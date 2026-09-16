@@ -80,10 +80,11 @@ public class DeliveryOutcomes {
             result = "dead";
         } else {
             boolean paused = endpoint.recordFailure(pauseAfter, now);
+            int attemptInRound = delivery.attemptInRound(attemptNo);
             var delay = outcome.retryAfter()
                     .map(d -> d.compareTo(MAX_RETRY_AFTER) > 0 ? MAX_RETRY_AFTER : d)
-                    .or(() -> backoff.delayAfter(attemptNo));
-            if (delay.isPresent() && attemptNo < backoff.maxAttempts()) {
+                    .or(() -> backoff.delayAfter(attemptInRound));
+            if (delay.isPresent() && attemptInRound < backoff.maxAttempts()) {
                 delivery.retryAt(now.plus(delay.get()), outcome.statusCode(), outcome.error());
                 result = "retry";
             } else {

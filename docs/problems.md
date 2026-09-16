@@ -10,4 +10,5 @@ Every error body is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 | `#bad-request` | 400 | The request parsed but is unacceptable, e.g. a payload over 64 KB. Validation failures use Spring's default `about:blank` type with field details. |
 | `#invalid-target` | 422 | The endpoint URL isn't `https`, embeds credentials, doesn't resolve, or resolves to a private, loopback, link-local or reserved address. |
 | `#limit-reached` | 422 | A tenant cap was hit (5 endpoints). |
+| `#not-replayable` | 422 | The delivery is still pending or running, or its endpoint is switched off. Only a finished delivery going to a live endpoint can be replayed. |
 | `#rate-limited` | 429 | Too many tenants created from one address. |

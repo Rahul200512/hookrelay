@@ -26,7 +26,13 @@ npx neonctl projects create --name hookrelay --region-id aws-us-east-1 --pg-vers
 ## Render
 
 1. **New → Web Service → Public Git repository**, URL `https://github.com/Rahul200512/hookrelay`, runtime Docker. Render builds the `Dockerfile`; the free plan's build minutes cover it comfortably. (The CI-built image on GHCR is an artifact, not the deploy source: the package inherits the repository's visibility at first publish, so it is not pullable without a credential.)
-2. Instance type **Free**, region **Virginia** (same coast as the Neon project). Add the three database variables above. `APP_PUBLIC_URL` is not needed on Render: the app falls back to the `RENDER_EXTERNAL_URL` Render injects, and binds to the `PORT` Render sets.
+2. Instance type **Free**, region **Virginia** (same coast as the Neon project). Add the three database variables above, plus `APP_ENCRYPTION_KEY`:
+
+   ```bash
+   openssl rand -base64 32
+   ```
+
+   Signing secrets are encrypted at rest with it and the service refuses to start without one. Keep it: change it and every secret already stored becomes unreadable, which means every receiver's verification starts failing. `APP_PUBLIC_URL` is not needed on Render: the app falls back to the `RENDER_EXTERNAL_URL` Render injects, and binds to the `PORT` Render sets.
 3. Health check path `/actuator/health`.
 4. Create an API key under **Account settings → API keys**. Save it as the repository secret `RENDER_API_KEY`, the service id (`srv-…`) as `RENDER_SERVICE_ID`, and the service URL as the repository variable `APP_URL`. After every green CI run on `main` the deploy workflow asks Render for a new deploy through the API; the keep-warm workflow pings health every ten minutes.
 

@@ -22,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "hookrelay.security.allow-private-targets=true",
+        "hookrelay.security.encryption-key=aG9va3JlbGF5LXRlc3Qta2V5LTMyLWJ5dGVzLWxvbmc=",
         "hookrelay.security.signups-per-hour-per-ip=1000",
         "hookrelay.public-url=http://localhost:0",
         "hookrelay.delivery.poll-interval=200ms",
@@ -83,6 +84,10 @@ public abstract class IntegrationTest {
         var spec = http.get().uri(path);
         if (key != null) spec = spec.header("Authorization", "Bearer " + key);
         return spec.retrieve().toEntity(JsonNode.class);
+    }
+
+    protected ResponseEntity<JsonNode> delete(String path, String key) {
+        return http.delete().uri(path).header("Authorization", "Bearer " + key).retrieve().toEntity(JsonNode.class);
     }
 
     protected ResponseEntity<JsonNode> patch(String path, String key, Object body) {

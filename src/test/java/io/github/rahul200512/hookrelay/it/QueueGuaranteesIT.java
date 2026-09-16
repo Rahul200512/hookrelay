@@ -35,6 +35,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "hookrelay.delivery.poller-enabled=false",
         "hookrelay.delivery.lease=60s",
         "hookrelay.security.allow-private-targets=true",
+        "hookrelay.security.encryption-key=aG9va3JlbGF5LXRlc3Qta2V5LTMyLWJ5dGVzLWxvbmc=",
         "logging.level.io.github.rahul200512.hookrelay=INFO",
 })
 @Testcontainers(disabledWithoutDocker = true)

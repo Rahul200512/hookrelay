@@ -4,7 +4,9 @@ import io.github.rahul200512.hookrelay.domain.Endpoint;
 import io.github.rahul200512.hookrelay.domain.EndpointRepository;
 import io.github.rahul200512.hookrelay.domain.WebhookSigner;
 import io.github.rahul200512.hookrelay.security.CurrentTenant;
+import io.github.rahul200512.hookrelay.config.HookrelayProperties;
 import io.github.rahul200512.hookrelay.security.SsrfGuard;
+import java.time.Clock;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -54,10 +56,15 @@ public class EndpointController {
 
     private final EndpointRepository endpoints;
     private final SsrfGuard ssrfGuard;
+    private final java.time.Duration secretOverlap;
+    private final Clock clock;
 
-    public EndpointController(EndpointRepository endpoints, SsrfGuard ssrfGuard) {
+    public EndpointController(EndpointRepository endpoints, SsrfGuard ssrfGuard,
+                              HookrelayProperties properties, Clock clock) {
         this.endpoints = endpoints;
         this.ssrfGuard = ssrfGuard;
+        this.secretOverlap = properties.security().secretOverlap();
+        this.clock = clock;
     }
 
     @Operation(summary = "Register a receiver URL", description = "Returns the signing secret once. eventTypes omitted or empty means all types.")
@@ -113,6 +120,24 @@ public class EndpointController {
     @Transactional
     public void delete(@PathVariable UUID id) {
         endpoints.delete(find(id));
+    }
+
+    public record SecretRotated(String secret, Instant previousSecretExpiresAt, String note) {}
+
+    @Operation(summary = "Replace the signing secret",
+            description = "The old secret keeps signing alongside the new one for an overlap window, so deliveries "
+                    + "carry both signatures and a receiver can be updated at any point inside it without a single "
+                    + "delivery failing verification.")
+    @PostMapping("/v1/endpoints/{id}/rotate-secret")
+    @Transactional
+    public SecretRotated rotateSecret(@PathVariable UUID id) {
+        Endpoint endpoint = find(id);
+        String replacement = WebhookSigner.newSecret();
+        endpoint.rotateSecret(replacement, secretOverlap, clock.instant());
+        endpoints.save(endpoint);
+        return new SecretRotated(replacement, endpoint.getPreviousSecretExpiresAt(),
+                "Deliveries carry both signatures until then. Update your receiver before it lapses; "
+                        + "the new secret is not shown again.");
     }
 
     private Endpoint find(UUID id) {

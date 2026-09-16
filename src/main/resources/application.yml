@@ -54,6 +54,14 @@ hookrelay:
   security:
     # Only ever true in dev/test: lets endpoints point at localhost.
     allow-private-targets: false
+    events-per-minute-per-tenant: 120
+    # Base64 of 32 bytes: openssl rand -base64 32. No default on purpose — the service
+    # refuses to start without it rather than store signing secrets in the clear.
+    encryption-key: ${APP_ENCRYPTION_KEY:}
+    # A rotated secret keeps signing alongside its replacement for this long, so a
+    # receiver can be updated without dropping a delivery in between.
+    secret-overlap: 24h
+    demo-retention: 7d
     signups-per-hour-per-ip: 5
 
 server:

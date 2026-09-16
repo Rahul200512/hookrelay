@@ -1,6 +1,8 @@
 package io.github.rahul200512.hookrelay.domain;
 
+import io.github.rahul200512.hookrelay.crypto.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -8,7 +10,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -27,9 +31,11 @@ public class Endpoint {
 
     private String description;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(nullable = false)
     private String secret;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "previous_secret")
     private String previousSecret;
 
@@ -100,6 +106,27 @@ public class Endpoint {
         enabled = false;
         pausedAt = now;
         pausedReason = reason;
+    }
+
+    /**
+     * Replaces the signing secret, keeping the old one alive for {@code overlap}. Both
+     * sign every delivery in that window, so a receiver can be updated at any point
+     * inside it without a single delivery failing verification.
+     */
+    public void rotateSecret(String newSecret, java.time.Duration overlap, Instant now) {
+        previousSecret = secret;
+        previousSecretExpiresAt = now.plus(overlap);
+        secret = newSecret;
+    }
+
+    /** Every secret a delivery sent now should be signed with, newest first. */
+    public List<String> signingSecrets(Instant now) {
+        List<String> secrets = new ArrayList<>(2);
+        secrets.add(secret);
+        if (previousSecret != null && previousSecretExpiresAt != null && previousSecretExpiresAt.isAfter(now)) {
+            secrets.add(previousSecret);
+        }
+        return secrets;
     }
 
     public void enable() {

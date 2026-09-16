@@ -21,6 +21,17 @@ class ArchitectureTest {
             .should().dependOnClassesThat().resideInAnyPackage(ROOT + "api..", ROOT + "delivery..", ROOT + "events..",
                     ROOT + "sink..", ROOT + "tenancy..", ROOT + "security..", ROOT + "config..");
 
+    /**
+     * Encryption sits below the domain rather than beside it. The entities have to name a
+     * converter to have their secrets encrypted at rest, and that must not be an excuse
+     * for the domain to start reaching into the web layer's package.
+     */
+    @ArchTest
+    static final ArchRule crypto_is_the_bottom_layer = noClasses()
+            .that().resideInAPackage(ROOT + "crypto..")
+            .should().dependOnClassesThat().resideInAnyPackage(ROOT + "api..", ROOT + "delivery..", ROOT + "domain..",
+                    ROOT + "events..", ROOT + "sink..", ROOT + "tenancy..", ROOT + "security..", ROOT + "config..");
+
     @ArchTest
     static final ArchRule nothing_reaches_into_the_api_layer = noClasses()
             .that().resideOutsideOfPackage(ROOT + "api..")

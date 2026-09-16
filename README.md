@@ -109,7 +109,7 @@ Retries wait 10s, 1m, 5m, 30m, 2h, 6h, 12h — eight attempts over about twenty 
 
 **Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problems** with stable `type` URIs, listed in [docs/problems.md](docs/problems.md).
 
-72 tests, 91% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
+90 tests, 91% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
 
 ## Guarantees, measured (v1)
 
@@ -141,9 +141,32 @@ Refused with a 422 if the delivery is still pending or running, or if its endpoi
 
 Pauses the service inflicted on itself are lifted this way. An endpoint the user disabled, or one that answered 410 Gone, stays off until the user turns it back on.
 
+
+## Secrets and tenancy (v2)
+
+**A secret can change without dropping a delivery.** `POST /v1/endpoints/{id}/rotate-secret` issues a new secret and keeps the old one signing alongside it for 24 hours. Deliveries in that window carry both signatures, space delimited as the spec allows:
+
+```
+webhook-signature: v1,DmQ6JhEuXeGjCkVPtvV8tKUwD1yFqCJhKDzHIXxNoCU= v1,KcGKunCPomn9ulXQRCmzjrbZeRZv5YMWY0X9vKxPYzY=
+```
+
+A receiver verifies if *any* one matches, so it can be updated at any point inside the window and never sees a failure. Rotate twice inside one window and you still get two: the header cannot grow without bound.
+
+**Signing secrets are encrypted at rest** with AES-GCM, key from the environment. A leaked database dump is bad; a leaked database dump that lets someone forge deliveries every receiver accepts as genuine is worse. Stored values carry a `v1:` prefix so the scheme can change later — an unprefixed blob can only be guessed at.
+
+There is no fallback to plaintext. With no key configured the service refuses to start and tells you how to make one, because a service that quietly stops encrypting when a variable goes missing is worse than one that stops.
+
+**API keys rotate the same way.** `POST /v1/api-keys` issues another, `DELETE /v1/api-keys/{id}` revokes one: issue, deploy, revoke, no gap. Only the SHA-256 is stored, so listing keys gives you prefixes and nothing else. Revoking your only active key is refused — it would lock the tenant out with no way back in.
+
+**Limits, and what they actually enforce.** Five endpoints and five active keys per tenant, five signups an hour per address, 120 events a minute per tenant. The counters live in memory, so with more than one instance the real limit is that times the instance count. They protect a free-tier database from a script; they are not a global quota, and calling them one would be a lie. A shared counter is the fix and it needs somewhere shared to put it.
+
+**Anyone can create a tenant**, which is what makes the live demo work without an account, and also what would fill half a gigabyte of free Postgres with strangers' test data. Demo tenants are deleted after seven days and everything they own goes with them through the foreign keys.
+
+Verification snippets for receivers, in [Java](docs/VerifySignature.java) and [Node](docs/verify-signature.js). Both check the timestamp as well as the signature: without that, a signature captured once stays valid forever.
+
 ## What's next
 
-Secret rotation with an overlap window so a secret can change without dropping deliveries, and a native image to see whether a free-tier cold start can be made not to matter. Tracked in [ROADMAP.md](ROADMAP.md).
+A native image, to see whether a free-tier cold start can be made not to matter, and virtual threads measured against a platform-thread pool rather than assumed better. Tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Run locally
 
@@ -154,10 +177,11 @@ docker run -d --name hookrelay-pg -p 5432:5432 \
   -e POSTGRES_USER=hookrelay -e POSTGRES_PASSWORD=hookrelay -e POSTGRES_DB=hookrelay \
   postgres:17-alpine
 
+export APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
 ./mvnw spring-boot:run
 ```
 
-Flyway creates the schema on startup. To point endpoints at `localhost` while experimenting, set `hookrelay.security.allow-private-targets=true` — it is false everywhere else for the reason described above.
+Flyway creates the schema on startup. The encryption key is required: signing secrets are encrypted at rest and the service will not start without one. Keep the same key between restarts or the secrets already stored become unreadable. To point endpoints at `localhost` while experimenting, set `hookrelay.security.allow-private-targets=true` — it is false everywhere else for the reason described above.
 
 `./mvnw verify` runs everything, including the Testcontainers tests. Without Docker they skip rather than fail, and the build stays green on the unit tests alone — so check the skip count if you expected them to run. On Colima or another non-default Docker socket, point Testcontainers at it:
 
@@ -174,6 +198,7 @@ src/main/java/io/github/rahul200512/hookrelay/
   domain/      entities, repositories, BackoffPolicy, WebhookSigner
   delivery/    DeliveryQueue (the claim), Dispatcher (virtual threads),
                Client (signing + timeouts), Outcomes (what a response means)
+  crypto/      AES-GCM for secrets at rest, below everything else
   security/    API key filter, SSRF guard
   events/      publish + fan-out + idempotency
   sink/        the built-in test receiver

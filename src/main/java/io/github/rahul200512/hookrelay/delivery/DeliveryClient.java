@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -43,7 +44,7 @@ public class DeliveryClient {
         this.client = RestClient.builder().requestFactory(factory).build();
     }
 
-    public Outcome send(UUID deliveryId, String url, String secret, String body) {
+    public Outcome send(UUID deliveryId, String url, List<String> secrets, String body) {
         long started = System.nanoTime();
         URI target;
         try {
@@ -52,7 +53,7 @@ public class DeliveryClient {
             return new Outcome(null, "target rejected: " + e.getMessage(), Optional.empty(), elapsed(started));
         }
         long timestamp = clock.instant().getEpochSecond();
-        String signature = WebhookSigner.sign(secret, deliveryId.toString(), timestamp, body);
+        String signature = WebhookSigner.signAll(secrets, deliveryId.toString(), timestamp, body);
         try {
             return client.post()
                     .uri(target)

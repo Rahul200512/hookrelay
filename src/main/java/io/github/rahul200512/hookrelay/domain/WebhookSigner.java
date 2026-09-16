@@ -5,6 +5,8 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
+import java.util.stream.Collectors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -48,6 +50,17 @@ public final class WebhookSigner {
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException("HmacSHA256 unavailable", e);
         }
+    }
+
+    /**
+     * The header value for a delivery signed by more than one secret, space delimited as
+     * the spec requires. A receiver that knows any one of them verifies successfully,
+     * which is what makes a secret rotation invisible to it.
+     */
+    public static String signAll(List<String> secrets, String webhookId, long timestampSeconds, String body) {
+        return secrets.stream()
+                .map(secret -> sign(secret, webhookId, timestampSeconds, body))
+                .collect(Collectors.joining(" "));
     }
 
     /** Constant-time check of one {@code v1,...} signature against a header that may carry several. */

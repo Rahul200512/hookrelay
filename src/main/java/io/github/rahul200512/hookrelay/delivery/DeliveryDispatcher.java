@@ -88,7 +88,7 @@ public class DeliveryDispatcher {
         DeliveryClient.Outcome outcome;
         gate.acquireUninterruptibly();
         try {
-            outcome = client.send(claimed.id(), endpoint.getUrl(), endpoint.getSecret(), body);
+            outcome = client.send(claimed.id(), endpoint.getUrl(), endpoint.signingSecrets(startedAt), body);
         } finally {
             gate.release();
         }

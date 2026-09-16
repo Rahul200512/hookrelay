@@ -27,5 +27,12 @@ public record HookrelayProperties(
 
     public record Security(
             boolean allowPrivateTargets,
-            @Min(1) int signupsPerHourPerIp) {}
+            @Min(1) int signupsPerHourPerIp,
+            @Min(1) int eventsPerMinutePerTenant,
+            /** Base64 of 32 bytes. Generate with: openssl rand -base64 32 */
+            String encryptionKey,
+            /** How long a rotated secret keeps signing alongside the new one. */
+            @NotNull Duration secretOverlap,
+            /** Demo tenants older than this are deleted. */
+            @NotNull Duration demoRetention) {}
 }

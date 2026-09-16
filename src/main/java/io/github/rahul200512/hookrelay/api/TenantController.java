@@ -1,6 +1,6 @@
 package io.github.rahul200512.hookrelay.api;
 
-import io.github.rahul200512.hookrelay.tenancy.SignupRateLimiter;
+import io.github.rahul200512.hookrelay.tenancy.RateLimits;
 import io.github.rahul200512.hookrelay.tenancy.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -23,11 +23,11 @@ public class TenantController {
     public record TenantCreated(UUID tenantId, String name, String apiKey, String note) {}
 
     private final TenantService tenants;
-    private final SignupRateLimiter limiter;
+    private final RateLimits limits;
 
-    public TenantController(TenantService tenants, SignupRateLimiter limiter) {
+    public TenantController(TenantService tenants, RateLimits limits) {
         this.tenants = tenants;
-        this.limiter = limiter;
+        this.limits = limits;
     }
 
     @Operation(summary = "Create a tenant and get an API key", description = "Unauthenticated, rate limited per IP. The key is shown once.")
@@ -35,7 +35,7 @@ public class TenantController {
     @PostMapping("/v1/tenants")
     @ResponseStatus(HttpStatus.CREATED)
     public TenantCreated create(@Valid @RequestBody CreateTenantRequest body, HttpServletRequest request) {
-        if (!limiter.allow(request.getRemoteAddr())) {
+        if (!limits.allowSignup(request.getRemoteAddr())) {
             throw new ApiErrors.TooManyRequests("Too many tenants created from this address. Try again in an hour.");
         }
         var created = tenants.create(body.name().trim());

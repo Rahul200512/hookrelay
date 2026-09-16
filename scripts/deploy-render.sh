@@ -3,6 +3,7 @@
 #
 #   RENDER_API_KEY   from Render → Account settings → API keys (required)
 #   DATABASE_URL, DATABASE_USERNAME, DATABASE_PASSWORD   the Neon values (required on first create)
+#   APP_ENCRYPTION_KEY  base64 of 32 bytes; generated and saved to ~/.hookrelay/app.env if unset
 #
 # Idempotent: a second run finds the existing service and triggers a deploy.
 set -euo pipefail
@@ -30,6 +31,16 @@ for row in json.load(sys.stdin):
 
 if [ -z "$existing" ]; then
   : "${DATABASE_URL:?set DATABASE_URL}" "${DATABASE_USERNAME:?set DATABASE_USERNAME}" "${DATABASE_PASSWORD:?set DATABASE_PASSWORD}"
+  # Signing secrets are encrypted at rest with this key and the service will not start
+  # without it. Changing it later makes every stored secret unreadable, so keep a copy
+  # somewhere that is not this terminal's scrollback.
+  if [ -z "${APP_ENCRYPTION_KEY:-}" ]; then
+    umask 077; mkdir -p "$HOME/.hookrelay"
+    APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
+    printf 'APP_ENCRYPTION_KEY=%s\n' "$APP_ENCRYPTION_KEY" >> "$HOME/.hookrelay/app.env"
+    echo "generated an encryption key and appended it to ~/.hookrelay/app.env"
+  fi
+  export APP_ENCRYPTION_KEY
   body=$(python3 - "$owner_id" "$NAME" "$REPO" "$REGION" <<'PY'
 import json, os, sys
 owner, name, repo, region = sys.argv[1:5]
@@ -52,6 +63,7 @@ print(json.dumps({
     {"key": "DATABASE_URL", "value": os.environ["DATABASE_URL"]},
     {"key": "DATABASE_USERNAME", "value": os.environ["DATABASE_USERNAME"]},
     {"key": "DATABASE_PASSWORD", "value": os.environ["DATABASE_PASSWORD"]},
+    {"key": "APP_ENCRYPTION_KEY", "value": os.environ["APP_ENCRYPTION_KEY"]},
   ],
 }))
 PY

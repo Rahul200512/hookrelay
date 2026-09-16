@@ -7,6 +7,7 @@ import io.github.rahul200512.hookrelay.domain.Event;
 import io.github.rahul200512.hookrelay.domain.EventRepository;
 import io.github.rahul200512.hookrelay.events.EventService;
 import io.github.rahul200512.hookrelay.security.CurrentTenant;
+import io.github.rahul200512.hookrelay.tenancy.RateLimits;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -46,8 +47,11 @@ public class EventController {
     private final EventRepository eventRepository;
     private final DeliveryRepository deliveries;
     private final ObjectMapper mapper;
+    private final RateLimits limits;
 
-    public EventController(EventService events, EventRepository eventRepository, DeliveryRepository deliveries, ObjectMapper mapper) {
+    public EventController(EventService events, EventRepository eventRepository, DeliveryRepository deliveries,
+                           ObjectMapper mapper, RateLimits limits) {
+        this.limits = limits;
         this.events = events;
         this.eventRepository = eventRepository;
         this.deliveries = deliveries;
@@ -62,12 +66,16 @@ public class EventController {
             @Valid @RequestBody CreateEventRequest body,
             @Parameter(description = "Any string up to 255 chars, unique per tenant.")
             @RequestHeader(name = "Idempotency-Key", required = false) @Size(max = 255) String idempotencyKey) {
+        UUID tenantId = CurrentTenant.id();
+        if (!limits.allowEvent(tenantId)) {
+            throw new ApiErrors.TooManyRequests("This tenant is publishing too fast. Slow down and retry.");
+        }
         String payload = mapper.writeValueAsString(body.payload());
         if (payload.length() > MAX_PAYLOAD_BYTES) {
             throw new ApiErrors.BadRequest("Payload exceeds " + MAX_PAYLOAD_BYTES + " bytes.");
         }
         String key = idempotencyKey == null || idempotencyKey.isBlank() ? null : idempotencyKey.trim();
-        var result = events.create(CurrentTenant.id(), body.type(), payload, key);
+        var result = events.create(tenantId, body.type(), payload, key);
         return ResponseEntity.status(result.replayed() ? HttpStatus.OK : HttpStatus.CREATED)
                 .body(toResponse(result.event(), result.deliveries()));
     }

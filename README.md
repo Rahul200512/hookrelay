@@ -109,7 +109,7 @@ Retries wait 10s, 1m, 5m, 30m, 2h, 6h, 12h — eight attempts over about twenty 
 
 **Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problems** with stable `type` URIs, listed in [docs/problems.md](docs/problems.md).
 
-90 tests, 91% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
+90 tests, 92% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
 
 ## Guarantees, measured (v1)
 
@@ -164,9 +164,35 @@ There is no fallback to plaintext. With no key configured the service refuses to
 
 Verification snippets for receivers, in [Java](docs/VerifySignature.java) and [Node](docs/verify-signature.js). Both check the timestamp as well as the signature: without that, a signature captured once stays valid forever.
 
+
+## The thread model, measured (v3)
+
+The v0 section says delivery runs on virtual threads because the work is almost all waiting. That was an assertion. The thread model is now a setting, so the same code can be run both ways and the claim checked:
+
+```bash
+./mvnw test -Dtest='*BenchmarkIT'
+```
+
+500 deliveries to one receiver that takes 200 ms to answer, identical in every respect except the executor:
+
+| Executor | Wall time | Throughput | Call latency (avg / max) | Dispatch spread |
+|---|---|---|---|---|
+| Virtual thread per delivery, 256 in flight | **3,156 ms** | **158/s** | 254 ms / 775 ms | 2,643 ms |
+| Fixed pool of 16 platform threads | 7,191 ms | 70/s | 203 ms / 235 ms | 6,844 ms |
+
+Read the last two columns together, because they say something the throughput number alone doesn't.
+
+The platform pool's calls are *cleaner* — 203 ms average against a receiver that takes 200 ms, almost no overhead — and it is still less than half the speed. Only sixteen calls can be outstanding at once, so the work is served sixteen at a time and the dispatch spread stretches to 6.8 seconds. `500 × 200 ms ÷ 16` is 6.25 seconds, so it is running within 15% of the best it could possibly do. The pool size *is* the throughput.
+
+Virtual threads get all 256 out much closer together, and pay for it in per-call latency: 254 ms average, 775 ms worst. That extra time is contention, and it is mostly an artefact of the measurement — the receiver is a controller in this same JVM competing for the same cores, so 256 genuinely simultaneous 200 ms calls cannot all come back in 200 ms. Against real receivers on other people's servers the ceiling would be higher. The comparison is still fair, because both runs pay it.
+
+**Why sixteen and not five hundred.** The honest version of "just make the pool bigger" is that a platform thread reserves its stack whether it is working or waiting, and here it is always waiting. Sixteen is about what you would give a 512 MB free-tier container. That is the trade virtual threads remove: the in-flight cap can now be a number chosen from what receivers and sockets can stand, rather than from what a thread costs to have.
+
+The benchmark is kept out of `mvn verify`. It takes a minute, and it measures a machine as much as it measures the code.
+
 ## What's next
 
-A native image, to see whether a free-tier cold start can be made not to matter, and virtual threads measured against a platform-thread pool rather than assumed better. Tracked in [ROADMAP.md](ROADMAP.md).
+A native image, to see whether a free-tier cold start can be made not to matter. Tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Run locally
 

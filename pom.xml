@@ -131,9 +131,13 @@
             <include>**/*Test.java</include>
             <include>**/*IT.java</include>
           </includes>
-          <!-- The benchmark takes a minute and measures the machine as much as the code.
-               Run it deliberately: ./mvnw test -Dtest=ThroughputBenchmarkIT -Dgroups=benchmark -->
-          <excludedGroups>benchmark</excludedGroups>
+          <!-- The benchmark takes a minute and measures the machine as much as the code,
+               so it stays out of the normal build. Run it deliberately:
+                 ./mvnw test -Dtest='*BenchmarkIT'
+               -Dtest overrides these filters, which is what makes that work. -->
+          <excludes>
+            <exclude>**/*BenchmarkIT.java</exclude>
+          </excludes>
         </configuration>
       </plugin>
       <plugin>

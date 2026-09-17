@@ -65,37 +65,20 @@ jobs:
         run: ./scripts/measure-startup.sh native target/hookrelay | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Prove the native binary actually serves traffic
-        # A fast start that cannot answer a request would be worth nothing. This runs the
-        # README's own loop against the native binary: tenant, sink, endpoint, event, and
-        # the delivery has to arrive signed.
+        # A fast start that cannot answer a request is worth nothing, and native images
+        # fail at exactly this: reflection and proxies the JVM resolves at runtime. This
+        # is the same script that is run against the live service.
         run: |
-          ./target/hookrelay --server.port=18080 --hookrelay.security.allow-private-targets=true \
+          ./target/hookrelay --server.port=18080 \
+            --hookrelay.security.allow-private-targets=true \
             --hookrelay.public-url=http://localhost:18080 > native-run.log 2>&1 &
-          pid=$!
+          echo $! > native.pid
           for _ in $(seq 1 60); do
             curl -sf http://localhost:18080/actuator/health >/dev/null && break
             sleep 1
           done
-          set -e
-          KEY=$(curl -s -X POST http://localhost:18080/v1/tenants -H 'content-type: application/json' \
-            -d '{"name":"native-smoke"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["apiKey"])')
-          SINK=$(curl -s -X POST http://localhost:18080/v1/sinks -H "authorization: Bearer $KEY")
-          URL=$(echo "$SINK" | python3 -c 'import sys,json;print(json.load(sys.stdin)["url"])')
-          ID=$(echo "$SINK" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
-          curl -s -X POST http://localhost:18080/v1/endpoints -H "authorization: Bearer $KEY" \
-            -H 'content-type: application/json' -d "{\"url\":\"$URL\"}" > /dev/null
-          curl -s -X POST http://localhost:18080/v1/events -H "authorization: Bearer $KEY" \
-            -H 'content-type: application/json' -d '{"type":"native.smoke","payload":{"ok":true}}' > /dev/null
-          sleep 6
-          curl -s "http://localhost:18080/v1/sinks/$ID/requests" -H "authorization: Bearer $KEY" \
-            | python3 -c '
-import sys, json
-r = json.load(sys.stdin)
-assert len(r) == 1, f"expected one signed delivery, got {len(r)}"
-assert r[0]["headers"]["webhook-signature"].startswith("v1,"), r[0]["headers"]
-print("native binary served a signed delivery end to end")
-' | tee -a "$GITHUB_STEP_SUMMARY"
-          kill $pid
+          ./scripts/smoke.sh http://localhost:18080 | tee -a "$GITHUB_STEP_SUMMARY"
+          kill "$(cat native.pid)"
 
       - name: Upload the logs if anything failed
         if: failure()

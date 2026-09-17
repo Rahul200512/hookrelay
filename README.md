@@ -197,6 +197,31 @@ Virtual threads get all 256 out much closer together, and pay for it in per-call
 The benchmark is kept out of `mvn verify`. It takes a minute, and it measures a machine as much as it measures the code.
 
 
+### Cold start, and whether it can be made not to matter
+
+The free instance sleeps after fifteen idle minutes, and waking it means starting the application. So the question is what startup actually costs, and whether compiling ahead of time removes it. Both artefacts, same commit, same Linux runner, against a real Postgres:
+
+| | JVM | Native image |
+|---|---|---|
+| Startup to serving, median of 5 | 5,058 ms | **307 ms** |
+| Resident memory once serving | 416 MB | **241 MB** |
+| Artifact size | 65 MB | 209 MB |
+| Build time | seconds | 242 s |
+
+Sixteen times faster to start, and 175 MB less memory on a box that has 512 MB. The binary is three times the size of the jar, which costs nothing here because it is built once and does not have to fit in RAM.
+
+The build is the real price: four minutes of compilation, and several gigabytes while it runs. That is why it is a weekly job rather than part of every push, and why it is not worth doing on a laptop somebody is using.
+
+**It also has to serve traffic, not just start.** A native image keeps only what it can prove is reachable, so anything found by reflection or by scanning the classpath at runtime disappears. This one built cleanly and then refused to start, twice:
+
+- Flyway looks for migrations by scanning `db/migration`, which answers `unsupported protocol: resource` with no classpath to scan.
+- Hibernate reflectively instantiates `UUID[]` to build the entity manager, which nothing reachable referenced.
+
+Both are registered as hints now. CI runs [`scripts/smoke.sh`](scripts/smoke.sh) against the binary afterwards, publishing an event and requiring a signed delivery back, because a build that starts in 307 ms and cannot answer a request is worth less than one that takes five seconds and can.
+
+The deployed service still runs the JVM image. Swapping it is a Dockerfile change, and the honest reason it hasn't happened is that the keep-warm cron already hides the cold start and a four-minute build on every deploy is a worse trade than a ping every ten minutes.
+
+
 ## A real producer (v4)
 
 The README opens by saying BumpCheck needed this. It now uses it: when its enrichment worker persists a breaking change, it publishes one event here.
@@ -219,9 +244,18 @@ Its idempotency key is the release's content hash, which makes re-running that p
 
 That is the whole point of the idempotency key being a header rather than a promise. The producer does not have to remember what it has already sent.
 
+## Known limitations
+
+Worth saying plainly rather than leaving someone to find them.
+
+- **The free instance sleeps** after fifteen idle minutes. A keep-warm cron pings health every ten, so the demo is usually warm, but a request landing in the gap waits about a minute. The native image above is the real fix and is not deployed yet.
+- **The rate limiters are per instance**, and `X-Forwarded-For` is caller-written. They blunt a script. They are not a quota and not a security boundary.
+- **A payload containing something that looks like an attack** can be rejected by the edge in front of this service with an HTML 403 before it ever reaches the application. `"1; DROP TABLE deliveries;--"` as a string value does it. Nothing is wrong with the request, and the reply is not a Problem Details document, because nothing here produced it.
+- **Delivery order is not promised.** Neither Stripe nor GitHub promise it either. Events carry a timestamp and a stable id; ordering is the receiver's to apply.
+
 ## What's next
 
-A native image, to see whether a free-tier cold start can be made not to matter. It is built in CI rather than on a laptop: ahead-of-time compilation wants several gigabytes and several minutes. Tracked in [ROADMAP.md](ROADMAP.md).
+Advisory data from the GitHub Advisory Database as a second event type, and a shared rate limiter so the numbers above mean what they say with more than one instance. Tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Run locally
 

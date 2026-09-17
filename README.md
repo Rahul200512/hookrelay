@@ -194,9 +194,32 @@ Virtual threads get all 256 out much closer together, and pay for it in per-call
 
 The benchmark is kept out of `mvn verify`. It takes a minute, and it measures a machine as much as it measures the code.
 
+
+## A real producer (v4)
+
+The README opens by saying BumpCheck needed this. It now uses it: when its enrichment worker persists a breaking change, it publishes one event here.
+
+```json
+{
+  "type": "package.breaking_change",
+  "payload": {
+    "package": "alembic", "ecosystem": "pypi", "version": "1.20.0",
+    "breakingChanges": [{
+      "summary": "Support for SQLAlchemy 1.4 is removed",
+      "severity": "high",
+      "quote": "Alembic now requires SQLAlchemy 2.0.0 or newer"
+    }]
+  }
+}
+```
+
+Its idempotency key is the release's content hash, which makes re-running that pipeline free: hookrelay recognises the key and returns the original event rather than fanning out a second time. Published twice against the live service, the subscriber received exactly one delivery.
+
+That is the whole point of the idempotency key being a header rather than a promise. The producer does not have to remember what it has already sent.
+
 ## What's next
 
-A native image, to see whether a free-tier cold start can be made not to matter. Tracked in [ROADMAP.md](ROADMAP.md).
+A native image, to see whether a free-tier cold start can be made not to matter. It is built in CI rather than on a laptop: ahead-of-time compilation wants several gigabytes and several minutes. Tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Run locally
 

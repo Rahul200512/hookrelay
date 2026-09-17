@@ -44,6 +44,15 @@ class AuthAndValidationIT extends IntegrationTest {
     }
 
     @Test
+    void theRootSendsAVisitorToTheDocsRatherThanA401() {
+        // Opening the service in a browser used to answer a bare 401 problem document.
+        // Correct, and the worst possible first thing to show someone handed the link.
+        var response = http.get().uri("/").retrieve().toBodilessEntity();
+        assertThat(response.getStatusCode().value()).isEqualTo(302);
+        assertThat(response.getHeaders().getLocation()).hasToString("/swagger-ui.html");
+    }
+
+    @Test
     void publicRoutesNeedNoKey() {
         assertThat(get("/actuator/health", null).getStatusCode().value()).isEqualTo(200);
         assertThat(get("/v3/api-docs", null).getStatusCode().value()).isEqualTo(200);

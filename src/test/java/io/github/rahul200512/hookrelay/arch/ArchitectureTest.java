@@ -4,14 +4,32 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.core.importer.Location;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The layering that the package names promise, enforced. */
-@AnalyzeClasses(packages = "io.github.rahul200512.hookrelay", importOptions = ImportOption.DoNotIncludeTests.class)
+@AnalyzeClasses(
+        packages = "io.github.rahul200512.hookrelay",
+        importOptions = {ImportOption.DoNotIncludeTests.class, ArchitectureTest.DoNotIncludeGeneratedCode.class})
 class ArchitectureTest {
+
+    /**
+     * Skips the classes Spring's ahead-of-time processing writes.
+     *
+     * <p>Running the native profile leaves generated bean registrations in {@code target}
+     * that wire every layer to every other, because that is what a generated bean factory
+     * does. They are not the code these rules are about, and a build that passes or fails
+     * depending on whether someone ran the native profile earlier is worse than no rule.
+     */
+    static final class DoNotIncludeGeneratedCode implements ImportOption {
+        @Override
+        public boolean includes(Location location) {
+            return !location.contains("__") && !location.contains("spring-aot");
+        }
+    }
 
     private static final String ROOT = "io.github.rahul200512.hookrelay.";
 

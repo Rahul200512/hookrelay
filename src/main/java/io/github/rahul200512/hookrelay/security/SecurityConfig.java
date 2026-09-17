@@ -23,7 +23,7 @@ class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/v1/tenants").permitAll()
                 .requestMatchers("/sink/**", "/actuator/health/**", "/actuator/prometheus", "/actuator/info").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll()
+                .requestMatchers("/", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) ->
                 ProblemResponses.write(response, mapper, HttpStatus.UNAUTHORIZED, "unauthenticated",

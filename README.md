@@ -113,7 +113,7 @@ Retries wait 10s, 1m, 5m, 30m, 2h, 6h, 12h — eight attempts over about twenty 
 
 **Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problems** with stable `type` URIs, listed in [docs/problems.md](docs/problems.md).
 
-90 tests, 92% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
+99 tests, 92% line coverage. The integration tests run the real application against a real Postgres in Testcontainers, and cover the delivery loop, signature verification, idempotency, retries, dead-lettering, endpoint pausing, 410, and timeouts. ArchUnit enforces that the domain doesn't reach upwards into the web layer. gitleaks scans the whole history on every push.
 
 ## Guarantees, measured (v1)
 
@@ -163,6 +163,8 @@ There is no fallback to plaintext. With no key configured the service refuses to
 **API keys rotate the same way.** `POST /v1/api-keys` issues another, `DELETE /v1/api-keys/{id}` revokes one: issue, deploy, revoke, no gap. Only the SHA-256 is stored, so listing keys gives you prefixes and nothing else. Revoking your only active key is refused — it would lock the tenant out with no way back in.
 
 **Limits, and what they actually enforce.** Five endpoints and five active keys per tenant, five signups an hour per address, 120 events a minute per tenant. The counters live in memory, so with more than one instance the real limit is that times the instance count. They protect a free-tier database from a script; they are not a global quota, and calling them one would be a lie. A shared counter is the fix and it needs somewhere shared to put it.
+
+The per-address one was worse than that at first: it did nothing at all in production while passing its tests locally. It keyed on `getRemoteAddr()`, which behind a load balancer is the balancer, and that address rotates — so every signup looked like a new client and the count never reached five. `server.forward-headers-strategy` does not fix it either, because Tomcat only rewrites the remote address when the immediate peer is in its trusted-proxy ranges, and an edge network is not. The client address is now read from the proxy headers, edge-set one first. `X-Forwarded-For` is written by the caller and can say anything, so none of this is a security boundary; the real backstop is that demo tenants are deleted after a week.
 
 **Anyone can create a tenant**, which is what makes the live demo work without an account, and also what would fill half a gigabyte of free Postgres with strangers' test data. Demo tenants are deleted after seven days and everything they own goes with them through the foreign keys.
 

@@ -1,5 +1,6 @@
 package io.github.rahul200512.hookrelay.api;
 
+import io.github.rahul200512.hookrelay.security.ClientIp;
 import io.github.rahul200512.hookrelay.tenancy.RateLimits;
 import io.github.rahul200512.hookrelay.tenancy.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,7 +36,7 @@ public class TenantController {
     @PostMapping("/v1/tenants")
     @ResponseStatus(HttpStatus.CREATED)
     public TenantCreated create(@Valid @RequestBody CreateTenantRequest body, HttpServletRequest request) {
-        if (!limits.allowSignup(request.getRemoteAddr())) {
+        if (!limits.allowSignup(ClientIp.of(request))) {
             throw new ApiErrors.TooManyRequests("Too many tenants created from this address. Try again in an hour.");
         }
         var created = tenants.create(body.name().trim());

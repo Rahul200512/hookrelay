@@ -1,35 +1,107 @@
 name: Native image
 
-# Ahead-of-time compilation needs several gigabytes and several minutes, so it does not
-# belong on every push. This proves the image still builds and reports what it costs.
+# Ahead-of-time compilation wants several gigabytes and several minutes, so it does not
+# belong on every push — and it certainly does not belong on a laptop somebody is using.
+# This builds both artefacts against a real Postgres and reports what each one costs to
+# start, on Linux, which is what the deployed service actually runs on.
 on:
   schedule:
     - cron: "23 4 * * 1"
   workflow_dispatch:
 
 jobs:
-  build:
+  compare:
+    name: JVM vs native, startup and memory
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: hookrelay
+          POSTGRES_PASSWORD: hookrelay
+          POSTGRES_DB: hookrelay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hookrelay"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: jdbc:postgresql://localhost:5432/hookrelay
+      DATABASE_USERNAME: hookrelay
+      DATABASE_PASSWORD: hookrelay
+
     steps:
       - uses: actions/checkout@v5
+
       - uses: graalvm/setup-graalvm@v1
         with:
-          java-version: "21"
+          java-version: "25"
           distribution: graalvm-community
           cache: maven
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compile ahead of time
-        run: ./mvnw -B --no-transfer-progress -Pnative -DskipTests native:compile
+      - name: Generate an encryption key for this run
+        run: echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
 
-      - name: Size and startup
+      - name: Build the JVM jar
+        run: ./mvnw -B --no-transfer-progress -DskipTests package
+
+      - name: Time the JVM build
+        run: ./scripts/measure-startup.sh jvm target/hookrelay.jar | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Compile ahead of time
+        # Timed too: the cost of AOT is part of the trade, not a footnote.
         run: |
-          ls -lh target/hookrelay
-          # No database here, so it will fail to start; what is being timed is how long the
-          # runtime takes to get as far as trying, which is the part AOT changes.
-          start=$(date +%s%N)
-          ./target/hookrelay --spring.profiles.active=nostart > start.log 2>&1 || true
-          end=$(date +%s%N)
-          echo "reached startup in $(( (end - start) / 1000000 )) ms"
-          grep -E "Started|Starting" start.log | head -3 || true
+          start=$(date +%s)
+          ./mvnw -B --no-transfer-progress -Pnative -DskipTests native:compile
+          echo "native build took $(( $(date +%s) - start )) s" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Time the native build
+        run: ./scripts/measure-startup.sh native target/hookrelay | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Prove the native binary actually serves traffic
+        # A fast start that cannot answer a request would be worth nothing. This runs the
+        # README's own loop against the native binary: tenant, sink, endpoint, event, and
+        # the delivery has to arrive signed.
+        run: |
+          ./target/hookrelay --server.port=18080 --hookrelay.security.allow-private-targets=true \
+            --hookrelay.public-url=http://localhost:18080 > native-run.log 2>&1 &
+          pid=$!
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:18080/actuator/health >/dev/null && break
+            sleep 1
+          done
+          set -e
+          KEY=$(curl -s -X POST http://localhost:18080/v1/tenants -H 'content-type: application/json' \
+            -d '{"name":"native-smoke"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["apiKey"])')
+          SINK=$(curl -s -X POST http://localhost:18080/v1/sinks -H "authorization: Bearer $KEY")
+          URL=$(echo "$SINK" | python3 -c 'import sys,json;print(json.load(sys.stdin)["url"])')
+          ID=$(echo "$SINK" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+          curl -s -X POST http://localhost:18080/v1/endpoints -H "authorization: Bearer $KEY" \
+            -H 'content-type: application/json' -d "{\"url\":\"$URL\"}" > /dev/null
+          curl -s -X POST http://localhost:18080/v1/events -H "authorization: Bearer $KEY" \
+            -H 'content-type: application/json' -d '{"type":"native.smoke","payload":{"ok":true}}' > /dev/null
+          sleep 6
+          curl -s "http://localhost:18080/v1/sinks/$ID/requests" -H "authorization: Bearer $KEY" \
+            | python3 -c '
+import sys, json
+r = json.load(sys.stdin)
+assert len(r) == 1, f"expected one signed delivery, got {len(r)}"
+assert r[0]["headers"]["webhook-signature"].startswith("v1,"), r[0]["headers"]
+print("native binary served a signed delivery end to end")
+' | tee -a "$GITHUB_STEP_SUMMARY"
+          kill $pid
+
+      - name: Upload the logs if anything failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-logs
+          path: |
+            native-run.log
+            /tmp/startup-*.log

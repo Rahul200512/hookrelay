@@ -49,6 +49,38 @@ jobs:
           if [ -z "$RENDER_API_KEY" ] || [ -z "$RENDER_SERVICE_ID" ]; then
             echo "Render secrets not set; image pushed, deploy skipped"; exit 0
           fi
-          curl -fsS -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+          id=$(curl -fsS -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
             -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" \
-            -d '{"clearCache":"do_not_clear"}' | python3 -c 'import sys,json; d=json.load(sys.stdin); print("deploy", d.get("id"), d.get("status"))'
+            -d '{"clearCache":"do_not_clear"}' \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+          echo "requested deploy $id"
+          echo "RENDER_DEPLOY_ID=$id" >> "$GITHUB_ENV"
+
+      # Requesting a deploy and reporting success is a lie: Render is still building, and
+      # a green tick here while the old version is serving is worse than no tick at all.
+      # This waits for the deploy the step above actually created.
+      - name: Wait for it to go live
+        if: env.RENDER_DEPLOY_ID != ''
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          for _ in $(seq 1 90); do
+            status=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" -H 'Accept: application/json' \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$RENDER_DEPLOY_ID" \
+              | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])')
+            case "$status" in
+              live) echo "live"; exit 0 ;;
+              build_failed|update_failed|canceled|pre_deploy_failed) echo "deploy $status"; exit 1 ;;
+              *) printf '.'; sleep 20 ;;
+            esac
+          done
+          echo "timed out waiting for the deploy to go live"; exit 1
+
+      - name: Smoke test what is now serving
+        if: env.RENDER_DEPLOY_ID != ''
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then echo "APP_URL not set; skipping"; exit 0; fi
+          ./scripts/smoke.sh "$APP_URL"

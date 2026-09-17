@@ -249,7 +249,7 @@ That is the whole point of the idempotency key being a header rather than a prom
 Worth saying plainly rather than leaving someone to find them.
 
 - **The free instance sleeps** after fifteen idle minutes. A keep-warm cron pings health every ten, so the demo is usually warm, but a request landing in the gap waits about a minute. The native image above is the real fix and is not deployed yet.
-- **The rate limiters are per instance**, and `X-Forwarded-For` is caller-written. They blunt a script. They are not a quota and not a security boundary.
+- **The rate limiters are per instance and in memory**, so a deploy resets every counter, and `X-Forwarded-For` is caller-written. They blunt a script. They are not a quota and not a security boundary.
 - **A payload containing something that looks like an attack** can be rejected by the edge in front of this service with an HTML 403 before it ever reaches the application. `"1; DROP TABLE deliveries;--"` as a string value does it. Nothing is wrong with the request, and the reply is not a Problem Details document, because nothing here produced it.
 - **Delivery order is not promised.** Neither Stripe nor GitHub promise it either. Events carry a timestamp and a stable id; ordering is the receiver's to apply.
 

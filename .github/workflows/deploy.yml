@@ -81,6 +81,9 @@ jobs:
         if: env.RENDER_DEPLOY_ID != ''
         env:
           APP_URL: ${{ vars.APP_URL }}
+          # Reuses a key when one is configured, so the smoke test cannot be defeated by
+          # the signup limit it is partly there to protect.
+          HOOKRELAY_API_KEY: ${{ secrets.SMOKE_API_KEY }}
         run: |
           if [ -z "$APP_URL" ]; then echo "APP_URL not set; skipping"; exit 0; fi
           ./scripts/smoke.sh "$APP_URL"

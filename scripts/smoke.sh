@@ -16,8 +16,24 @@ HOST=${HOST%/}
 api() { curl -sS --max-time 90 "$@"; }
 field() { python3 -c "import sys,json;print(json.load(sys.stdin)$1)"; }
 
-KEY=$(api -X POST "$HOST/v1/tenants" -H 'content-type: application/json' \
-  -d '{"name":"smoke"}' | field '["apiKey"]')
+# An API key can be supplied instead of creating a tenant. Signup is rate limited per
+# address, so a run from somewhere that has already used its allowance would otherwise
+# fail on the first call with a stack trace about a missing field.
+if [ -n "${HOOKRELAY_API_KEY:-}" ]; then
+  KEY=$HOOKRELAY_API_KEY
+else
+  signup=$(curl -sS --max-time 90 -w '\n%{http_code}' -X POST "$HOST/v1/tenants" \
+    -H 'content-type: application/json' -d '{"name":"smoke"}')
+  code=$(printf '%s' "$signup" | tail -1)
+  body=$(printf '%s' "$signup" | sed '$d')
+  if [ "$code" != "201" ]; then
+    echo "smoke: could not create a tenant (HTTP $code)" >&2
+    echo "$body" >&2
+    [ "$code" = "429" ] && echo "smoke: signup is rate limited from this address; set HOOKRELAY_API_KEY to reuse a key" >&2
+    exit 1
+  fi
+  KEY=$(printf '%s' "$body" | field '["apiKey"]')
+fi
 
 SINK=$(api -X POST "$HOST/v1/sinks" -H "authorization: Bearer $KEY")
 SINK_URL=$(printf '%s' "$SINK" | field '["url"]')
